@@ -1,17 +1,19 @@
-# Jenkins CI/CD Pipeline Configuration
+# CI/CD Pipeline Infrastructure Guide
 
-## Project Overview
-This repository contains the infrastructure-as-code and application logic for an automated Continuous Integration (CI) pipeline. The implementation transitions manual code integration into an automated workflow, validating commits in real-time to ensure software reliability. 
+## Architecture Overview
+This repository defines an automated Continuous Integration (CI) pipeline demonstrating modern DevOps practices. The infrastructure-as-code implementation transitions manual workflows into an event-driven system that builds, tests, and containerizes application logic in real-time.
 
-## Environment Setup
-The continuous integration infrastructure is hosted natively on an Ubuntu Linux environment. The Jenkins automation server was provisioned via the APT package manager, configured with the OpenJDK 21 runtime, and is managed as a persistent `systemd` background service to ensure stable and performant pipeline execution.
+## Infrastructure Setup
+The Jenkins automation server is provisioned on a native Linux environment and managed as a persistent `systemd` service. The CI server is deeply integrated with the host's Docker daemon, allowing the pipeline to natively build and authenticate container images without relying on nested virtualization.
 
-## Pipeline Architecture
-The workflow is defined declaratively using a `Jenkinsfile` and handles a Node.js application through the following automated stages:
-1. **Fetch Code:** Pulls the latest source from the version control system.
-2. **Build:** Installs application dependencies securely via `npm install`.
-3. **Test:** Executes the automated test suite using Jest. The pipeline is configured to fail the build if any unit tests fail.
-4. **Package / Artifact:** Archives the application code and dependencies into a deployable `.tar.gz` artifact.
+## Pipeline Lifecycle and Automation
+The declarative `Jenkinsfile` orchestrates the following automated lifecycle:
+1. **Automated Triggering:** The pipeline utilizes SCM polling (`pollSCM`) to detect repository changes, ensuring builds are triggered automatically upon code commits.
+2. **Build & Test:** Dependencies are resolved securely via `npm`, followed by automated unit testing. Pipeline execution halts immediately upon test failure.
+3. **Artifact Generation:** Source code is packaged into an archived `.tar.gz` artifact.
+4. **Containerization & Credential Management:** The application is containerized using a multi-stage `Dockerfile`. Registry authentication is handled securely via Jenkins Credential Binding (`withCredentials`), ensuring sensitive authentication tokens are masked and never exposed in the host environment or build logs.
 
-## Technical Implementation Details
-To ensure the pipeline had the correct runtime context, the Jenkins environment was extended using the NodeJS plugin. The runtime was mapped globally and invoked within the `tools` block of the declarative pipeline, allowing the Jenkins agent to natively execute `npm` commands without manual path configurations on the host server.
+## Resource Management
+To ensure long-term stability and prevent disk exhaustion, the pipeline implements strict retention policies:
+- **Build Discarder:** Retains only the 5 most recent builds and artifacts.
+- **Workspace Teardown:** A `post` execution stage forces a `cleanWs()` operation to purge ephemeral workspace files upon completion.
